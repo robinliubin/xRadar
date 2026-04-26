@@ -126,6 +126,33 @@ button.refresh.running {
   animation: xradar-shimmer 1.6s linear infinite;
 }
 
+/*
+ * Gear button that opens the Settings (options) page in a new tab. Sits
+ * inline with the refresh button + meta text so it's visible from any
+ * dashboard state, not only the empty state.
+ */
+a.settings-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: 16px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, transform 0.18s ease;
+}
+
+a.settings-link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: rotate(45deg);
+}
+
 @keyframes xradar-shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
