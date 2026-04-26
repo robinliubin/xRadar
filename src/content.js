@@ -45,6 +45,29 @@
   let flushTimer = null;
   const pending = [];
 
+  // Once the extension is reloaded/uninstalled, *this* content script keeps
+  // running on whatever x.com tab the user has open, but any chrome.runtime.*
+  // call throws "Extension context invalidated". Without a tripwire, every
+  // MutationObserver fire after that point re-throws into the page. We track
+  // an "alive" flag and shut down cleanly the first time we detect the
+  // invalidated context — the user has to refresh the tab to start
+  // collecting again, which is correct.
+  let alive = true;
+
+  function isContextInvalidated(err) {
+    return /Extension context invalidated/i.test(String(err));
+  }
+
+  function shutdown() {
+    if (!alive) return;
+    alive = false;
+    try { observer.disconnect(); } catch { /* observer may not exist yet */ }
+    if (flushTimer !== null) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+  }
+
   function fingerprint(post) {
     return `t${post.text.length}|m${post.media.length}`;
   }
@@ -129,6 +152,7 @@
   }
 
   function scan() {
+    if (!alive) return;
     // Re-read the handle each scan in case the user SPA-navigated to a
     // different profile without a full page reload (x.com does this a lot).
     const handle = currentProfileHandle();
@@ -162,20 +186,32 @@
   }
 
   function scheduleFlush() {
+    if (!alive) return;
     if (flushTimer !== null) return;
     if (pending.length === 0) return;
     // Debounce: wait a beat after the last mutation so a scroll-burst
     // produces one message instead of twenty.
     flushTimer = setTimeout(() => {
       flushTimer = null;
-      if (pending.length === 0) return;
+      if (!alive || pending.length === 0) return;
       const batch = pending.splice(0, pending.length);
-      chrome.runtime
-        .sendMessage({ type: "SAVE_POSTS", posts: batch })
-        .catch(() => {
-          // Service worker may have been asleep; the message still queues it.
-          // Nothing to do on failure — next scan will re-send anything new.
-        });
+      // sendMessage can fail two ways depending on Chrome version:
+      //   - synchronous throw (older / context fully torn down)
+      //   - rejected Promise (newer / runtime still partially alive)
+      // We need both a try/catch AND a .catch() to cover the matrix.
+      try {
+        const result = chrome.runtime.sendMessage({ type: "SAVE_POSTS", posts: batch });
+        if (result && typeof result.catch === "function") {
+          result.catch((err) => {
+            if (isContextInvalidated(err)) shutdown();
+            // Other rejections (SW asleep, transient): next scan re-sends.
+          });
+        }
+      } catch (err) {
+        if (isContextInvalidated(err)) shutdown();
+        // For any other sync throw we just drop the batch; the next scan
+        // will re-derive pending from the DOM via fingerprint dedup.
+      }
     }, 500);
   }
 
