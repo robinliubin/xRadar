@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(node *)",
+      "Read(//Users/binliu/.claude/image-cache/384cdbdd-6ab7-4aea-af4c-8e23c1562620/**)",
+      "Bash(sips -g pixelWidth -g pixelHeight \"/Users/binliu/.claude/image-cache/384cdbdd-6ab7-4aea-af4c-8e23c1562620/2.png\")"
+    ]
+  }
+}

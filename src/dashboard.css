@@ -1,0 +1,299 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0e13;
+  --bg-card: #151a22;
+  --bg-card-hover: #1c222c;
+  --border: #262d38;
+  --fg: #e6e9ef;
+  --fg-muted: #8a94a6;
+  --accent: #6ea8ff;
+  --cat-researcher: #7bd88f;
+  --cat-builder: #f6b86b;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+  background: rgba(11, 14, 19, 0.85);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px 12px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}
+
+.subtitle {
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+nav.filters {
+  display: flex;
+  gap: 4px;
+  justify-self: center;
+}
+
+nav.filters button {
+  background: transparent;
+  color: var(--fg-muted);
+  border: 1px solid transparent;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+nav.filters button:hover {
+  background: var(--bg-card);
+  color: var(--fg);
+}
+
+nav.filters button.active {
+  background: var(--bg-card);
+  color: var(--fg);
+  border-color: var(--border);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: end;
+}
+
+.meta {
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+button.refresh {
+  background: var(--bg-card);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  min-width: 180px;
+  text-align: center;
+}
+
+button.refresh:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button.refresh:disabled,
+button.refresh.running {
+  cursor: progress;
+  color: var(--fg-muted);
+  /* Subtle pulsing background so the user knows something is happening. */
+  background: linear-gradient(90deg, var(--bg-card) 0%, var(--bg-card-hover) 50%, var(--bg-card) 100%);
+  background-size: 200% 100%;
+  animation: xradar-shimmer 1.6s linear infinite;
+}
+
+@keyframes xradar-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/*
+ * Feed layout: CSS multi-column masonry.
+ *
+ * `column-width: 420px` tells the browser "create as many columns as you
+ * can fit where each is at least ~420px wide". On a 1280px viewport that's
+ * ~2 columns; on a 1920px display, 4; on a 2560px ultrawide, 5+. Each
+ * column stays narrow enough for comfortable reading line-length while
+ * the full viewport width gets used.
+ *
+ * Cards can naturally split across columns in multi-column layouts;
+ * `break-inside: avoid` prevents that so each post stays a single visual
+ * unit. The `gap` property doesn't work with CSS columns, so card spacing
+ * uses `margin-bottom` on .post.
+ */
+main {
+  padding: 14px 16px 80px;
+  column-width: 420px;
+  column-gap: 12px;
+}
+
+.post {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 0 0 12px;
+  transition: background 0.12s;
+  break-inside: avoid;
+  /* Safari/older-WebKit compatibility. */
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.post:hover { background: var(--bg-card-hover); }
+
+.post-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 12.5px;
+}
+
+.name { font-weight: 600; }
+.handle { color: var(--fg-muted); }
+
+.cat {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+}
+.cat-researcher { background: rgba(123, 216, 143, 0.12); color: var(--cat-researcher); }
+.cat-builder    { background: rgba(246, 184, 107, 0.12); color: var(--cat-builder); }
+
+.when {
+  margin-left: auto;
+  color: var(--fg-muted);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+.when:hover { color: var(--accent); }
+
+.post-text {
+  white-space: pre-wrap;
+  /* overflow-wrap (modern alias of word-wrap) breaks long URLs instead of
+   * letting them blow out the column and force a horizontal scrollbar. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--fg);
+}
+
+/*
+ * Media grid. Uses `auto-fit` so 1 image fills the card width, 2 sit
+ * side-by-side, and 3-4 fall into a 2-column arrangement (2x2 for 4).
+ * The aspect ratio is pinned so portrait photos don't create a tall
+ * card that breaks the masonry column flow visually.
+ */
+.post-media {
+  display: grid;
+  gap: 3px;
+  margin-top: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.post-media.count-1 { grid-template-columns: 1fr; }
+
+.media-item {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #000;
+  aspect-ratio: 16 / 10;
+}
+
+.media-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.18s ease;
+}
+
+.media-item:hover img { transform: scale(1.02); }
+
+.media-video .play-badge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(0, 0, 0, 0.28);
+  transition: background 0.12s;
+  /* Drop a subtle shadow so the triangle stays readable over bright posters. */
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.media-video:hover .play-badge { background: rgba(0, 0, 0, 0.45); }
+
+.empty {
+  /* Span every column so the empty-state card is centered and readable
+   * on wide viewports instead of getting crammed into one skinny column. */
+  column-span: all;
+  -webkit-column-span: all;
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--fg-muted);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+.empty-title { color: var(--fg); font-size: 16px; margin: 0 0 12px; }
+.empty-body  { max-width: 480px; margin: 0 auto 16px; }
+.empty-handles a {
+  color: var(--accent);
+  text-decoration: none;
+  margin: 0 4px;
+}
+.empty-handles a:hover { text-decoration: underline; }
+
+.empty-settings {
+  margin: 20px 0 0;
+}
+.empty-settings a {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 13px;
+  transition: border-color 0.12s, background 0.12s;
+}
+.empty-settings a:hover {
+  border-color: var(--accent);
+  background: var(--bg-card-hover);
+}

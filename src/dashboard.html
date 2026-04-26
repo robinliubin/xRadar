@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>xRadar</title>
+    <link rel="stylesheet" href="dashboard.css" />
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <h1>xRadar</h1>
+        <span class="subtitle">curated AI feed</span>
+      </div>
+      <nav class="filters" role="tablist">
+        <button data-filter="all" class="active" role="tab">All</button>
+        <button data-filter="researcher" role="tab">Researchers</button>
+        <button data-filter="builder" role="tab">Tool builders</button>
+      </nav>
+      <div class="actions">
+        <button id="refresh" class="refresh" type="button">Refresh all</button>
+        <div class="meta" id="meta"></div>
+      </div>
+    </header>
+    <main id="feed"></main>
+    <script type="module" src="dashboard.js"></script>
+  </body>
+</html>
