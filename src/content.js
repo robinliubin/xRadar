@@ -151,6 +151,38 @@
     return article.querySelector('[data-testid="tweet-text-show-more-link"]');
   }
 
+  // x.com gates non-logged-in users behind a login wall. The wall renders
+  // distinct testids that never appear inside an authenticated profile
+  // page. We sample those to detect "the user is not signed in" so the
+  // background/dashboard can surface a clear hint instead of leaving the
+  // dashboard mysteriously empty.
+  function looksLikeLoginWall() {
+    const hasLoginPrompt =
+      document.querySelector('[data-testid="loginButton"]') ||
+      document.querySelector('[data-testid="LoginForm_Login_Button"]') ||
+      document.querySelector('[data-testid="signupButton"]');
+    if (!hasLoginPrompt) return false;
+    // If we can also see at least one tweet article, the user IS logged in
+    // and the login button we found is just nav chrome shown to logged-in
+    // users (rare but possible in some x.com layouts). Don't flag in that case.
+    const hasTweets = !!document.querySelector('article[data-testid="tweet"]');
+    return !hasTweets;
+  }
+
+  let loginWallReported = false;
+  function reportLoginWallOnce() {
+    if (loginWallReported || !alive) return;
+    loginWallReported = true;
+    try {
+      const result = chrome.runtime.sendMessage({ type: "NOT_LOGGED_IN" });
+      if (result && typeof result.catch === "function") {
+        result.catch((err) => { if (isContextInvalidated(err)) shutdown(); });
+      }
+    } catch (err) {
+      if (isContextInvalidated(err)) shutdown();
+    }
+  }
+
   function scan() {
     if (!alive) return;
     // Re-read the handle each scan in case the user SPA-navigated to a
@@ -161,6 +193,13 @@
       profileHandle = handle;
       seen.clear();
       expandRequested.clear();
+      loginWallReported = false;
+    }
+
+    if (looksLikeLoginWall()) {
+      reportLoginWallOnce();
+      // Don't try to extract — the page has no tweets to find.
+      return;
     }
 
     const articles = document.querySelectorAll('article[data-testid="tweet"]');

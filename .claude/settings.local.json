@@ -9,7 +9,9 @@
       "Bash(mkdir -p /tmp/xradar-icon-test)",
       "Bash(magick /Users/binliu/.claude/image-cache/384cdbdd-6ab7-4aea-af4c-8e23c1562620/2.png -alpha set -fill none -fuzz 12% -draw 'alpha 0,0 floodfill' -resize 256x256 /tmp/xradar-icon-test/test-256.png)",
       "Bash(sips -g pixelWidth -g pixelHeight -g hasAlpha /tmp/xradar-icon-test/test-256.png)",
-      "Bash(python3)"
+      "Bash(python3)",
+      "Bash(zip -r xradar-1.0.1.zip manifest.json icons/ src/ -x \"*.DS_Store\")",
+      "Bash(unzip -l xradar-1.0.1.zip)"
     ]
   }
 }

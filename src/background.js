@@ -9,6 +9,7 @@ import { getAuthors, makeAuthorMap } from "./authors.js";
 
 const STORAGE_KEY = "xradar_posts";
 const LAST_REFRESH_KEY = "xradar_last_refresh";
+const LAST_LOGIN_WALL_KEY = "xradar_last_login_wall";  // ms epoch of last NOT_LOGGED_IN observation
 
 // Timing knobs for the "Refresh All" flow. Sized so that 29 authors take
 // ~90s end-to-end with enough variance that the pattern doesn't look like
@@ -45,6 +46,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .then((result) => sendResponse({ ok: true, ...result }))
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true; // async
+  }
+
+  if (msg?.type === "NOT_LOGGED_IN") {
+    // Content script detected an x.com login wall. Persist a timestamp so
+    // the dashboard can show a "log in first" hint after the next refresh.
+    chrome.storage.local.set({ [LAST_LOGIN_WALL_KEY]: Date.now() });
+    sendResponse({ ok: true });
+    return false;
   }
 
   return false;
@@ -126,6 +135,11 @@ async function runRefreshAll() {
   const startedAt = Date.now();
   let completed = 0;
   let failed = 0;
+
+  // Clear any prior login-wall flag at the start of a refresh. If we hit a
+  // wall during this refresh, content.js will set it again. If we don't,
+  // it stays clear — meaning a successful refresh removes the warning.
+  await chrome.storage.local.remove(LAST_LOGIN_WALL_KEY);
 
   // Snapshot the curated list once at the start so the loop sees a stable
   // set of authors. Edits made via the options page mid-refresh won't

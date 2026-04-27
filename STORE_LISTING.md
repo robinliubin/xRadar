@@ -6,6 +6,26 @@ corresponding form field.
 
 ---
 
+## v1.0.1 resubmission notes (response to first-review rejection)
+
+The initial v1.0.0 submission was rejected on two grounds. v1.0.1 addresses both:
+
+| Reviewer ID | Issue | Fix in v1.0.1 |
+|---|---|---|
+| **Red Potassium** — Inaccurate Description / Non-functional ("Unable to view the posts of the intended authors") | The reviewer's test environment likely had no signed-in x.com session, so the scraper couldn't read tweet content (xRadar uses the user's existing browser session, not API keys). The original description didn't make this prerequisite prominent enough. | (a) Description rewritten to lead with "REQUIREMENT: You must be signed in to x.com" before any feature list. (b) Dashboard empty state now shows a numbered checklist with "Sign in to x.com" as step 1 + an "Open x.com" button. (c) Content script detects an x.com login wall (`data-testid="loginButton"` etc.) and signals the dashboard, which renders an explicit "you're not signed in" banner. |
+| **Purple Potassium** — Use of Permissions ("`tabs` not necessary") | The `chrome.tabs.create / update / remove` methods we use don't require the `tabs` permission. We had requested it speculatively. | Removed `"tabs"` from `manifest.json` `permissions[]`. Verified `chrome.tabs.create / update / remove` still function via host_permissions for x.com. |
+
+If you fill in the "Notes for the reviewer" field on resubmission, paste this:
+
+```
+v1.0.1 changes from v1.0.0:
+1. Removed the "tabs" permission per Purple Potassium feedback. The chrome.tabs.create / update / remove methods we use (to open the dashboard and to navigate one pinned shuttle tab during user-clicked Refresh) do not require the "tabs" permission; the manifest now requests only "storage" plus the necessary x.com host permission.
+2. Addressed Red Potassium ("Unable to view the posts") by making the x.com signed-in session prerequisite explicit in three places: a top-of-description REQUIREMENT block, a numbered checklist on the dashboard's empty state with an "Open x.com" link, and an in-app banner that fires when the content script detects an x.com login wall during a refresh.
+xRadar is functional only when the installing user is already signed in to x.com in the same Chrome profile — this is by design (no API keys, no credential prompt) and is now stated up-front everywhere a reviewer will look.
+```
+
+---
+
 ## Listing summary
 
 | Field | Value |
@@ -20,20 +40,30 @@ corresponding form field.
 
 ## Short description (132 char limit — paste exactly)
 
-> A glanceable feed of recent X posts from a curated list of accounts you choose. No servers, no tracking, your data stays local.
+> A glanceable feed of X posts from a list you curate. Requires a logged-in x.com session. No servers, your data stays local.
 
-*(128 characters)*
+*(127 characters)*
 
 ---
 
 ## Detailed description (paste into "Description" field)
 
 ```
-xRadar is a one-glance reader for X (Twitter). Curate a short list of accounts you actually care about — researchers, tool builders, friends, anyone — and xRadar shows you their recent posts in a unified, chronological dashboard. No algorithmic feed, no engagement bait, no infinite scroll. Just the people you picked.
+xRadar is a one-glance reader for X (Twitter). Curate a short list of accounts you actually care about — researchers, tool builders, friends, anyone — and xRadar shows you their recent posts in a unified, chronological dashboard. No algorithmic feed, no engagement bait, no infinite scroll.
+
+────────────────────────────────────────────
+REQUIREMENT: You must be signed in to x.com in the same Chrome profile where xRadar is installed. xRadar reads public tweet content from x.com profile pages using your existing browser session — there is no API key, no login flow inside the extension, and nothing for xRadar to do if you aren't already signed in to x.com. The dashboard's empty state and the in-app login banner both flag this if you click Refresh without a session.
+────────────────────────────────────────────
+
+HOW TO USE IT (first run)
+1. Sign in to x.com in this Chrome profile (one-time).
+2. Click the xRadar toolbar icon. The dashboard opens with a checklist.
+3. (Optional) Open Settings → add or remove handles to match your interests.
+4. Click "Refresh all". xRadar opens one pinned background tab and visits each curated profile for ~3 seconds; the dashboard fills as posts arrive. Total time ~60-90 seconds for the default list of ~30 authors.
 
 WHAT IT DOES
 • One-click "Refresh all" pulls recent posts from every curated profile
-• Multi-column dashboard that fills your screen — see 4-5 columns of posts at a glance on a wide display
+• Multi-column dashboard that fills your screen — see 4-5 columns at a glance on a wide display
 • Photos and video posters render inline; click any tweet to open it on x.com
 • Long tweets auto-expand to show full text (no "Show more" clicking)
 • Filter tabs for the categories you define (e.g. "Researchers" vs "Tool builders")
@@ -43,23 +73,22 @@ WHAT IT DOES
 WHAT IT DOESN'T DO
 • No external server. xRadar has no backend; nothing leaves your device.
 • No analytics, no telemetry, no tracking.
-• No login, no API keys, no credentials. Uses your existing X session in the browser.
+• No API keys or credential prompts. Uses your existing browser session for x.com.
 • No automated polling. Refreshes only run when you click the button.
 
 WHO IT'S FOR
-People who follow a stable, curated list of accounts on X and want a calm reading view rather than the algorithmic timeline. Most useful if your list is in the 5-50 range; works fine outside that.
+People who follow a stable, curated list of accounts on X and want a calm reading view rather than the algorithmic timeline. Most useful if your list is in the 5-50 range.
 
 PRIVACY
 Everything stays on your device. Tweet content goes to chrome.storage.local; your curated handle list goes to chrome.storage.sync. Full details: https://robinliubin.github.io/xRadar/privacy.html
 
 OPEN SOURCE
-Source code at https://github.com/robinliubin/xRadar (MIT licensed).
+Source at https://github.com/robinliubin/xRadar (MIT licensed).
 
 LIMITATIONS YOU SHOULD KNOW ABOUT
-• You must be logged into x.com in the same Chrome profile.
-• "Refresh all" takes ~60-90 seconds for ~30 authors. It cycles a single pinned background tab through each profile.
 • Each refresh captures only the most recent ~5-10 posts per author (no deep history).
 • X's Terms of Service prohibit automated scraping. xRadar minimizes this by only running on explicit click with jitter between requests, but the residual risk lands on your X account.
+• If x.com changes its DOM, the scraper may temporarily stop returning posts until updated.
 ```
 
 ---
@@ -84,16 +113,6 @@ Used to save two pieces of user data, both locally:
 2. The user's curated list of X handles (from the Settings page), stored in chrome.storage.sync so it follows the user across signed-in Chromes.
 
 No data is transmitted off-device.
-```
-
-### `tabs`
-
-```
-Used for two narrow purposes:
-1. Open the dashboard page in a new tab when the user clicks the toolbar icon.
-2. During "Refresh all" (user-triggered), open one pinned, inactive background tab and update its URL through each curated profile so the content script can read the rendered DOM. The tab is closed when the refresh completes.
-
-The extension does not read tab metadata, query active tabs, or manipulate tabs the user did not initiate.
 ```
 
 ### Host permissions: `*://x.com/*` and `*://twitter.com/*`

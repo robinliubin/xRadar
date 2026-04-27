@@ -6,20 +6,26 @@ import {
 
 const STORAGE_KEY = "xradar_posts";
 const LAST_REFRESH_KEY = "xradar_last_refresh";
+const LAST_LOGIN_WALL_KEY = "xradar_last_login_wall";
 
 let currentFilter = "all";
 let allPosts = [];
 let refreshing = false;          // local UI lock; does not gate background
 let lastRefreshAt = null;        // ms epoch
+let lastLoginWallAt = null;      // ms epoch — set when content script saw an x.com login wall during the most recent refresh
 let authors = [];                // current curated list (from sync storage)
 let authorMap = new Map();       // lowercase-handle → author object
 
 async function load() {
   const [
-    { [STORAGE_KEY]: stored = {}, [LAST_REFRESH_KEY]: lastAt = null },
+    {
+      [STORAGE_KEY]: stored = {},
+      [LAST_REFRESH_KEY]: lastAt = null,
+      [LAST_LOGIN_WALL_KEY]: loginWallAt = null,
+    },
     fetchedAuthors,
   ] = await Promise.all([
-    chrome.storage.local.get([STORAGE_KEY, LAST_REFRESH_KEY]),
+    chrome.storage.local.get([STORAGE_KEY, LAST_REFRESH_KEY, LAST_LOGIN_WALL_KEY]),
     getAuthors(),
   ]);
 
@@ -33,6 +39,7 @@ async function load() {
     .filter((p) => authorMap.has(p.handle))
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   lastRefreshAt = lastAt;
+  lastLoginWallAt = loginWallAt;
   render();
 
   // Note: we deliberately do NOT auto-trigger a refresh on first open.
@@ -48,6 +55,13 @@ function render() {
   const feed = document.getElementById("feed");
   while (feed.firstChild) feed.removeChild(feed.firstChild);
 
+  // If the most recent refresh hit an x.com login wall, show a banner at
+  // the top of the feed even if some old posts are still cached. Reviewers
+  // and first-run users especially need this signal.
+  if (loginWallActive()) {
+    feed.appendChild(buildLoginWallBanner());
+  }
+
   if (posts.length === 0) {
     feed.appendChild(buildEmptyState());
   } else {
@@ -55,6 +69,40 @@ function render() {
   }
 
   renderMeta(posts);
+}
+
+function loginWallActive() {
+  // Treat a login-wall flag as "active" only if it was set *after* the last
+  // successful refresh — otherwise an old flag from a prior session would
+  // confusingly persist after the user logs in and refreshes.
+  if (!lastLoginWallAt) return false;
+  if (lastRefreshAt && lastLoginWallAt < lastRefreshAt - 60_000) return false;
+  return true;
+}
+
+function buildLoginWallBanner() {
+  const banner = document.createElement("div");
+  banner.className = "login-wall-banner";
+
+  const title = document.createElement("p");
+  title.className = "lw-title";
+  title.textContent = "Looks like you're not signed in to x.com.";
+
+  const body = document.createElement("p");
+  body.className = "lw-body";
+  body.textContent =
+    "xRadar reads tweets from x.com profile pages using your browser session. " +
+    "It can't see anything until you sign in. Open x.com, sign in, then click Refresh again.";
+
+  const action = document.createElement("a");
+  action.className = "lw-action";
+  action.href = "https://x.com/login";
+  action.target = "_blank";
+  action.rel = "noopener noreferrer";
+  action.textContent = "Open x.com to sign in →";
+
+  banner.append(title, body, action);
+  return banner;
 }
 
 function renderMeta(posts) {
@@ -224,42 +272,64 @@ function buildEmptyState() {
   } else if (authors.length === 0) {
     body.textContent = "Open Settings and add some X handles to start collecting posts.";
   } else {
-    body.textContent = `Click "Refresh all" above to fetch recent posts from your ${authors.length} curated authors. The first run takes ~60-90 seconds; later runs feel similar.`;
+    body.textContent = `Click "Refresh all" above to fetch recent posts from your ${authors.length} curated authors. The first run takes ~60-90 seconds.`;
   }
 
   wrap.append(title, body);
 
-  // Show the curated handles so the user has a sense of who's tracked.
-  // Skipped during refreshing (the progress counter already names them)
-  // and in the no-authors case (there's nothing to show).
+  // Prerequisite checklist — only shown when the user hasn't started
+  // collecting yet. The login requirement is FIRST so reviewers don't miss
+  // it. This is the fix for the "Inaccurate Description" Web Store rejection
+  // — the listing now stipulates this prerequisite, and so does the UI.
   if (!refreshing && authors.length > 0) {
-    const handles = document.createElement("p");
-    handles.className = "empty-handles";
-    const visible = currentFilter === "all"
-      ? authors
-      : authors.filter((a) => a.category === currentFilter);
-    visible.forEach((a, i) => {
-      if (i > 0) handles.appendChild(document.createTextNode(" · "));
-      const link = document.createElement("a");
-      link.href = `https://x.com/${a.handle}`;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.textContent = `@${a.handle}`;
-      handles.appendChild(link);
-    });
-    wrap.appendChild(handles);
+    const checklist = document.createElement("div");
+    checklist.className = "empty-checklist";
+
+    const checklistTitle = document.createElement("p");
+    checklistTitle.className = "checklist-title";
+    checklistTitle.textContent = "Before you click Refresh:";
+    checklist.appendChild(checklistTitle);
+
+    const items = [
+      {
+        text: "Sign in to x.com in this Chrome profile.",
+        action: { href: "https://x.com/login", label: "Open x.com" },
+      },
+      {
+        text: "(Optional) Customize the curated list in Settings.",
+        action: { href: "options.html", label: "Open Settings" },
+      },
+    ];
+    const list = document.createElement("ol");
+    list.className = "checklist";
+    for (const it of items) {
+      const li = document.createElement("li");
+      const span = document.createElement("span");
+      span.textContent = it.text + " ";
+      li.appendChild(span);
+      const a = document.createElement("a");
+      a.href = it.action.href;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = it.action.label + " →";
+      li.appendChild(a);
+      list.appendChild(li);
+    }
+    checklist.appendChild(list);
+    wrap.appendChild(checklist);
   }
 
-  // Footer link to settings — gives the user an obvious next step from
-  // both the empty state and the no-authors state.
-  if (!refreshing) {
+  // No-authors case: just an "Open Settings" CTA. The checklist above is
+  // skipped (it's only for the user-with-authors case), so this footer
+  // gives them an obvious next step.
+  if (!refreshing && authors.length === 0) {
     const settings = document.createElement("p");
     settings.className = "empty-settings";
     const link = document.createElement("a");
     link.href = "options.html";
     link.target = "_blank";
     link.rel = "noopener";
-    link.textContent = authors.length === 0 ? "Open Settings →" : "Customize this list in Settings";
+    link.textContent = "Open Settings →";
     settings.appendChild(link);
     wrap.appendChild(settings);
   }

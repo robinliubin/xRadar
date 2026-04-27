@@ -4,6 +4,13 @@ A Chrome extension that gives you a unified, glanceable feed of recent X (Twitte
 
 > Built for a specific itch: "I follow ~30 AI researchers and tool builders on X. Their posts are scattered across an algorithmic feed I have to fight. I want one page where I can see what those people said this week, in chronological order, and nothing else."
 
+## Requirement: signed-in x.com session
+
+xRadar reads public tweets from x.com profile pages **using your existing browser session**. It does not ask for credentials, store passwords, or use the X API. This means:
+
+- **You must be signed in to x.com** in the same Chrome profile as the extension before clicking "Refresh all", or the dashboard will stay empty.
+- If the dashboard is empty after a refresh, xRadar shows a banner with a link to sign in.
+
 ## Features
 
 - **One-click refresh** of every curated profile (~60-90s for 30 authors)
@@ -54,10 +61,9 @@ For full architecture details see [CLAUDE.md](CLAUDE.md).
 | Permission | What we use it for |
 |---|---|
 | `storage` | Save tweets locally; sync your curated handle list across signed-in Chromes. |
-| `tabs` | Open the dashboard in a new tab; open a pinned background tab during "Refresh all". |
-| `*://x.com/*` and `*://twitter.com/*` | Run the content script on x.com profile pages so we can read tweet text from the rendered DOM. |
+| `*://x.com/*` and `*://twitter.com/*` (host) | Run the content script on x.com profile pages so we can read tweet text from the rendered DOM, and authorize navigating the shuttle tab through profile URLs during refresh. |
 
-xRadar requests no other permissions, no broad host access, and no API tokens.
+xRadar requests no other permissions, no broad host access, and no API tokens. The `chrome.tabs.create / update / remove` methods used internally do not require the `tabs` permission; the host permission for x.com is what authorizes URL navigation on tabs we own.
 
 ## ⚠️ Account-risk disclaimer
 

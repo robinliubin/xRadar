@@ -324,3 +324,77 @@ main {
   border-color: var(--accent);
   background: var(--bg-card-hover);
 }
+
+/*
+ * Empty-state prerequisites checklist. Numbered ordered list so the
+ * first item ("sign in to x.com") visibly comes first. Inline action
+ * links beside each step.
+ */
+.empty-checklist {
+  margin: 24px auto 0;
+  max-width: 480px;
+  text-align: left;
+}
+.checklist-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.checklist {
+  margin: 0;
+  padding: 0 0 0 22px;
+  color: var(--fg);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.checklist li { margin-bottom: 4px; }
+.checklist a {
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.checklist a:hover { text-decoration: underline; }
+
+/*
+ * Login-wall banner. Shown above the feed (or above the empty state) when
+ * the most recent refresh observed an x.com login wall. High-contrast
+ * orange so it cuts through a populated feed without being alarmist.
+ */
+.login-wall-banner {
+  column-span: all;
+  -webkit-column-span: all;
+  max-width: 720px;
+  margin: 0 auto 16px;
+  padding: 16px 20px;
+  background: rgba(246, 184, 107, 0.08);
+  border: 1px solid rgba(246, 184, 107, 0.4);
+  border-radius: 10px;
+  text-align: left;
+}
+.lw-title {
+  margin: 0 0 4px;
+  color: var(--cat-builder);
+  font-weight: 600;
+  font-size: 14px;
+}
+.lw-body {
+  margin: 0 0 10px;
+  color: var(--fg);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.lw-action {
+  display: inline-block;
+  color: var(--cat-builder);
+  text-decoration: none;
+  font-size: 13px;
+  border: 1px solid rgba(246, 184, 107, 0.5);
+  padding: 6px 12px;
+  border-radius: 999px;
+  transition: background 0.12s;
+}
+.lw-action:hover {
+  background: rgba(246, 184, 107, 0.12);
+}
