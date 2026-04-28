@@ -69,7 +69,7 @@
   }
 
   function fingerprint(post) {
-    return `t${post.text.length}|m${post.media.length}`;
+    return `t${post.text.length}|m${post.media.length}|q${post.quotedUrl ? 1 : 0}`;
   }
 
   // Normalize pbs.twimg.com photo URLs to a reasonable display size. X serves
@@ -111,6 +111,31 @@
     return media;
   }
 
+  // Detect a quoted/embedded tweet inside this article. A quote tweet's
+  // outer article contains a nested status anchor for the QT'd post; that
+  // permalink is what we surface so the dashboard can link out to it.
+  // Return null if no nested status link other than the article's own
+  // permalink is found.
+  function findQuotedTweet(article, ownerHandle, ownerTweetId) {
+    const anchors = article.querySelectorAll('a[href*="/status/"]');
+    for (const a of anchors) {
+      const href = a.getAttribute("href") || "";
+      // Match `/handle/status/digits` exactly — reject /photo/, /analytics,
+      // /history, /retweets, etc. paths off the same status root.
+      const m = href.match(/^\/([^/]+)\/status\/(\d+)$/);
+      if (!m) continue;
+      const [, handle, id] = m;
+      // Skip the article's own permalink.
+      if (handle.toLowerCase() === ownerHandle && id === ownerTweetId) continue;
+      return {
+        author: handle.toLowerCase(),
+        id,
+        url: `https://x.com/${handle}/status/${id}`,
+      };
+    }
+    return null;
+  }
+
   function extractPost(article, expectedHandle) {
     const timeEl = article.querySelector("time");
     if (!timeEl) return null;
@@ -134,6 +159,8 @@
     const textEl = article.querySelector('[data-testid="tweetText"]');
     const text = textEl ? textEl.innerText : "";
 
+    const quoted = findQuotedTweet(article, authorFromUrl.toLowerCase(), id);
+
     return {
       id,
       handle: authorFromUrl.toLowerCase(),
@@ -141,6 +168,8 @@
       timestamp,
       url: `https://x.com${href}`,
       media: extractMedia(article),
+      quotedUrl: quoted?.url ?? null,
+      quotedAuthor: quoted?.author ?? null,
       capturedAt: Date.now(),
     };
   }

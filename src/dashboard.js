@@ -3,6 +3,11 @@ import {
   makeAuthorMap,
   AUTHORS_STORAGE_KEY,
 } from "./authors.js";
+import {
+  getSettings,
+  SETTINGS_STORAGE_KEY,
+  formatTimeWindowLabel,
+} from "./settings.js";
 
 const STORAGE_KEY = "xradar_posts";
 const LAST_REFRESH_KEY = "xradar_last_refresh";
@@ -15,6 +20,7 @@ let lastRefreshAt = null;        // ms epoch
 let lastLoginWallAt = null;      // ms epoch — set when content script saw an x.com login wall during the most recent refresh
 let authors = [];                // current curated list (from sync storage)
 let authorMap = new Map();       // lowercase-handle → author object
+let maxAgeDays = null;           // null = no time limit; otherwise hide posts older than N days
 
 async function load() {
   const [
@@ -24,19 +30,31 @@ async function load() {
       [LAST_LOGIN_WALL_KEY]: loginWallAt = null,
     },
     fetchedAuthors,
+    settings,
   ] = await Promise.all([
     chrome.storage.local.get([STORAGE_KEY, LAST_REFRESH_KEY, LAST_LOGIN_WALL_KEY]),
     getAuthors(),
+    getSettings(),
   ]);
 
   authors = fetchedAuthors;
   authorMap = makeAuthorMap(authors);
+  maxAgeDays = settings.maxAgeDays;
+
+  const cutoffMs = maxAgeDays != null ? Date.now() - maxAgeDays * 86_400_000 : null;
 
   // Drop any post whose handle is no longer in the curated list. Removing
   // someone from the options page effectively hides their history without
-  // a separate migration step.
+  // a separate migration step. Also drop posts that have nothing to render
+  // (no text, no media, no quoted-tweet reference) — these usually came
+  // from media-only tweets where the image/video URL didn't load in time
+  // to be captured. Finally drop posts older than the user's time window
+  // setting (filter only — the underlying records stay in storage so a
+  // later widening of the window restores them).
   allPosts = Object.values(stored)
     .filter((p) => authorMap.has(p.handle))
+    .filter(hasRenderableContent)
+    .filter((p) => withinTimeWindow(p, cutoffMs))
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   lastRefreshAt = lastAt;
   lastLoginWallAt = loginWallAt;
@@ -69,6 +87,23 @@ function render() {
   }
 
   renderMeta(posts);
+}
+
+function hasRenderableContent(p) {
+  if (typeof p.text === "string" && p.text.trim().length > 0) return true;
+  if (Array.isArray(p.media) && p.media.length > 0) return true;
+  if (p.quotedUrl) return true;
+  return false;
+}
+
+function withinTimeWindow(p, cutoffMs) {
+  // No cutoff means no filter (User chose "All time").
+  if (cutoffMs == null) return true;
+  // Posts with malformed timestamps are kept rather than silently hidden.
+  // Better to display a weird date than to lose the post entirely.
+  const t = new Date(p.timestamp).getTime();
+  if (Number.isNaN(t)) return true;
+  return t >= cutoffMs;
 }
 
 function loginWallActive() {
@@ -111,6 +146,8 @@ function renderMeta(posts) {
     `${posts.length} post${posts.length === 1 ? "" : "s"}`,
     `${uniqueAuthors} author${uniqueAuthors === 1 ? "" : "s"}`,
   ];
+  const windowLabel = formatTimeWindowLabel(maxAgeDays);
+  if (windowLabel) parts.push(windowLabel);
   if (lastRefreshAt) parts.push(`refreshed ${formatAgo(lastRefreshAt)}`);
   document.getElementById("meta").textContent = parts.join(" · ");
 }
@@ -202,7 +239,41 @@ function buildPost(p) {
     article.appendChild(buildMedia(p.media, p.url));
   }
 
+  // Quoted-tweet reference. Shown when the captured post embedded another
+  // tweet — most commonly a quote-tweet without commentary, where the
+  // outer post body would otherwise look blank. Click links out to the
+  // quoted tweet on x.com.
+  if (p.quotedUrl) {
+    article.appendChild(buildQuotedRef(p));
+  }
+
   return article;
+}
+
+function buildQuotedRef(p) {
+  const link = document.createElement("a");
+  link.className = "post-quote";
+  link.href = p.quotedUrl;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+
+  const arrow = document.createElement("span");
+  arrow.className = "post-quote-arrow";
+  arrow.textContent = "↳";
+  arrow.setAttribute("aria-hidden", "true");
+
+  const label = document.createElement("span");
+  label.className = "post-quote-label";
+  // Empty body case is the most informative framing ("Reposted") — but
+  // when the user added their own commentary above, "Quoting" is more
+  // accurate. Both link to the same destination either way.
+  const verb = (typeof p.text === "string" && p.text.trim().length > 0)
+    ? "Quoting"
+    : "Reposted";
+  label.textContent = `${verb} @${p.quotedAuthor || "…"}`;
+
+  link.append(arrow, label);
+  return link;
 }
 
 function buildMedia(media, tweetUrl) {
@@ -378,11 +449,12 @@ document.querySelectorAll("nav.filters button").forEach((btn) => {
 document.getElementById("refresh").addEventListener("click", triggerRefresh);
 
 // Reload when local storage changes (posts arriving) OR when the user
-// edits the authors list in the options page (lives in sync storage).
+// edits the authors list / changes the time window in the options page
+// (both live in sync storage).
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && (changes[STORAGE_KEY] || changes[LAST_REFRESH_KEY])) {
     load();
-  } else if (area === "sync" && changes[AUTHORS_STORAGE_KEY]) {
+  } else if (area === "sync" && (changes[AUTHORS_STORAGE_KEY] || changes[SETTINGS_STORAGE_KEY])) {
     load();
   }
 });

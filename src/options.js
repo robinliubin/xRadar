@@ -5,6 +5,11 @@ import {
   normalizeHandle,
   DEFAULT_AUTHORS,
 } from "./authors.js";
+import {
+  getSettings,
+  saveSettings,
+  TIME_WINDOW_OPTIONS,
+} from "./settings.js";
 
 const CATEGORY_LABELS = {
   researcher: "Researcher",
@@ -15,9 +20,39 @@ let authors = [];
 
 async function init() {
   authors = await getAuthors();
+  const settings = await getSettings();
+  populateTimeWindow(settings.maxAgeDays);
   render();
   wireForm();
   wireReset();
+  wireTimeWindow();
+}
+
+function populateTimeWindow(currentMaxAgeDays) {
+  const select = document.getElementById("time-window");
+  // Clear in case re-init re-runs.
+  while (select.firstChild) select.removeChild(select.firstChild);
+  for (const opt of TIME_WINDOW_OPTIONS) {
+    const o = document.createElement("option");
+    // <select>.value is always a string; we use the empty string as the
+    // sentinel for `null` (= All time) and convert back on save.
+    o.value = opt.value === null ? "" : String(opt.value);
+    o.textContent = opt.label;
+    if (opt.value === currentMaxAgeDays) o.selected = true;
+    select.appendChild(o);
+  }
+}
+
+function wireTimeWindow() {
+  const select = document.getElementById("time-window");
+  select.addEventListener("change", async () => {
+    const v = select.value;
+    const maxAgeDays = v === "" ? null : parseInt(v, 10);
+    await saveSettings({ maxAgeDays });
+    // No render() needed — the dashboard listens to storage.onChanged for
+    // settings and re-renders itself; the options page only shows the
+    // current selection, which the user just set, so it's already correct.
+  });
 }
 
 function render() {

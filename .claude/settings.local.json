@@ -11,7 +11,8 @@
       "Bash(sips -g pixelWidth -g pixelHeight -g hasAlpha /tmp/xradar-icon-test/test-256.png)",
       "Bash(python3)",
       "Bash(zip -r xradar-1.0.1.zip manifest.json icons/ src/ -x \"*.DS_Store\")",
-      "Bash(unzip -l xradar-1.0.1.zip)"
+      "Bash(unzip -l xradar-1.0.1.zip)",
+      "Bash(git push *)"
     ]
   }
 }

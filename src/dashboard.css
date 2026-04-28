@@ -285,6 +285,42 @@ main {
 
 .media-video:hover .play-badge { background: rgba(0, 0, 0, 0.45); }
 
+/*
+ * Quoted-tweet reference. Shown for quote tweets and reposts so the user
+ * can click through to the original post. Designed as a subtle inline
+ * pill rather than a full quoted-tweet card — keeps cards compact, since
+ * the full quoted content lives one click away on x.com.
+ */
+a.post-quote {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 5px 10px;
+  font-size: 12.5px;
+  color: var(--fg-muted);
+  background: rgba(110, 168, 255, 0.06);
+  border: 1px solid rgba(110, 168, 255, 0.18);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+a.post-quote:hover {
+  background: rgba(110, 168, 255, 0.12);
+  border-color: rgba(110, 168, 255, 0.38);
+  color: var(--accent);
+}
+
+.post-quote-arrow {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.post-quote-label {
+  font-variant-numeric: tabular-nums;
+}
+
 .empty {
   /* Span every column so the empty-state card is centered and readable
    * on wide viewports instead of getting crammed into one skinny column. */

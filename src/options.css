@@ -68,6 +68,25 @@ section h2 {
   color: var(--fg);
 }
 
+/* Display-settings section. Single inline label + select; the hint below
+ * explains the non-destructive nature of the filter so users don't worry
+ * about losing posts. */
+.field-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.field-inline select {
+  min-width: 180px;
+}
+
+.hint {
+  margin: 8px 0 0;
+  color: var(--fg-muted);
+  font-size: 12.5px;
+}
+
 /* ─── Add form ─────────────────────────────────────────────────────── */
 
 #add-form {

@@ -88,14 +88,16 @@ async function handleSave(incoming) {
       continue;
     }
     // We already have this tweet — but the content script often sends a
-    // thin version first (truncated text, no-media-yet) followed by richer
-    // versions as the DOM fills in. Upgrade if any of:
+    // thin version first (truncated text, no-media-yet, no-quote-yet)
+    // followed by richer versions as the DOM fills in. Upgrade if any of:
     //   (a) text grew (truncated → expanded by Show-more click)
     //   (b) media grew (images / video posters lazy-loaded after first scan)
-    // Either signal means we have strictly more signal than before.
+    //   (c) a quoted-tweet permalink appeared (nested QT block rendered)
+    // Any of these = strictly more signal than what we had stored.
     const richer =
       post.text.length > prior.text.length ||
-      (post.media?.length ?? 0) > (prior.media?.length ?? 0);
+      (post.media?.length ?? 0) > (prior.media?.length ?? 0) ||
+      (!!post.quotedUrl && !prior.quotedUrl);
     if (richer) {
       existing[post.id] = { ...prior, ...post };
       upgraded++;
